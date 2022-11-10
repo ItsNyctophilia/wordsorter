@@ -131,6 +131,15 @@ int main(int argc, char *argv[])
 		}
 		load_words(args, argc);
 		free(args);
+		// TODO: Create struct that holds words
+		// plus size of words[]
+		
+		//for (size_t i = 0; i < words_len; ++i) {
+		//	printf("%s\n", words[i]);
+		//}
+		//for (size_t i = 0; i < words_len; ++i) {
+		//	free(words[i]);
+		//}
 
 	}
 	return (SUCCESS);
@@ -141,17 +150,19 @@ char **load_words(char **input_files, size_t count_files)
 
 	// TODO: iterate through all files once basic
 	// functionality established for single file
-	FILE *fo = fopen(input_files[0], "r");
 	char **words;
 	size_t words_len = 0;
 	size_t current_max = DEFAULT_WORD_COUNT;
-
 	words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
-	if (!fo) {
-		fprintf(stderr, "%s could not be opened", input_files[0]);
-		perror(" \b");
-		exit(FILE_ERROR);
-	} else {
+	for (size_t i = 0; i < count_files; ++i) {
+		FILE *fo = fopen(input_files[i], "r");
+
+		if (!fo) {
+			fprintf(stderr, "%s could not be opened",
+				input_files[0]);
+			perror(" \b");
+			exit(FILE_ERROR);
+		}
 		char *line_buf = NULL;
 		size_t buf_size = 0;
 		while (getline(&line_buf, &buf_size, fo) != -1) {
@@ -160,13 +171,8 @@ char **load_words(char **input_files, size_t count_files)
 			}
 			char *current_word = strtok(line_buf, " \t\n\v\f\r");
 			char *current_word_stored;
-			if (current_word) {
-				current_word_stored =
-				    malloc((strlen(current_word) +
-					    1) * sizeof(char));
-			}
-
 			if (words_len == current_max) {
+				// Realloc syntax from Liam Echlin
 				char **tmp = realloc(words,
 						     (2 * current_max *
 						      sizeof(*words)));
@@ -179,49 +185,51 @@ char **load_words(char **input_files, size_t count_files)
 				       2 * current_max * sizeof(*words));
 				words = tmp;
 			}
+			if (current_word) {
+				current_word_stored =
+				    malloc((strlen(current_word) +
+					    1) * sizeof(*current_word));
+				strcpy(current_word_stored, current_word);
+				words[words_len] = current_word_stored;
+				++words_len;
+			}
 
 			while ((current_word =
 				strtok(NULL, " \t\n\v\f\r")) != NULL) {
 				// Reallocate memory if needed
 				if (words_len == current_max) {
 					char **tmp = realloc(words,
-							     (2 * current_max *
+							     (2 *
+							      current_max
+							      *
 							      sizeof(*words)));
 					if (!tmp) {
 						puts("Fatal allocation error");
 						exit(MEMORY_ERROR);
 					}
-
 					current_max *= 2;
 					printf("\nRealloc'd %zu\n",
 					       2 * current_max *
 					       sizeof(*words));
 					words = tmp;
-
 				}
 				current_word_stored = NULL;
 				if (current_word) {
 					current_word_stored =
-					    calloc(strlen(current_word) + 1,
-						   sizeof(char));
-				}
+					    calloc(strlen(current_word)
+						   + 1, sizeof(char));
 
-				strcpy(current_word_stored, current_word);
-				words[words_len] = current_word_stored;
-				++words_len;
+					strcpy(current_word_stored,
+					       current_word);
+					words[words_len] = current_word_stored;
+					++words_len;
+				}
 			}
 		}
 		if (line_buf) {
 			free(line_buf);
 		}
+		fclose(fo);
 	}
-	for (size_t i = 0; i < words_len; ++i) {
-		printf("%s\n", words[i]);
-	}
-	for (size_t i = 0; i < words_len; ++i) {
-		free(words[i]);
-	}
-	free(words);
-	fclose(fo);
-	return;
+	return(words);
 }
