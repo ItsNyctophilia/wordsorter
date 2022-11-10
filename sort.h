@@ -1,7 +1,7 @@
 #ifndef SORT_H
 #define SORT_H
 
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int ascii_sort(const void *str_1, const void *str_2);

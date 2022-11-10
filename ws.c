@@ -142,9 +142,8 @@ int main(int argc, char *argv[])
 		printf("words_len: %zu\n", current_array->words_len);	// DEVPRINT
 
 		if (current_array->words_len) {
-			// ASCII SORT TEST
 			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), len_sort);
+			      sizeof(*(current_array->words)), num_sort);
 		}
 		putchar('\n');
 		for (size_t i = 0; i < current_array->words_len; ++i) {
