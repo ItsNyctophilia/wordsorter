@@ -38,6 +38,7 @@ struct words_array {
 };
 
 struct words_array *load_words(char **input_files, size_t count_files);
+void prune_scrabble_words(struct words_array *current_array);
 
 int main(int argc, char *argv[])
 {
@@ -143,10 +144,11 @@ int main(int argc, char *argv[])
 
 		if (current_array->words_len) {
 			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)),
-			      insensitive_ascii_sort);
+			      sizeof(*(current_array->words)), scrabble_sort);
 		}
 		putchar('\n');
+
+		//prune_scrabble_words(current_array);
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			printf("%s\n", current_array->words[i]);
 		}
@@ -155,10 +157,16 @@ int main(int argc, char *argv[])
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			free(current_array->words[i]);
 		}
+
 		free(current_array->words);
 		free(current_array);
 	}
 	return (SUCCESS);
+}
+
+void prune_scrabble_words(struct words_array *current_array)
+{
+	return;
 }
 
 struct words_array *load_words(char **input_files, size_t count_files)
