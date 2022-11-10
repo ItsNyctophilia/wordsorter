@@ -146,7 +146,6 @@ char **load_words(char **input_files, size_t count_files)
 	size_t words_len = 0;
 	size_t current_max = DEFAULT_WORD_COUNT;
 
-	// TODO: Reallocate memory as needed when > DEFAULT_WC
 	words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
 	if (!fo) {
 		fprintf(stderr, "%s could not be opened", input_files[0]);
@@ -159,11 +158,14 @@ char **load_words(char **input_files, size_t count_files)
 			if (line_buf[0] == '\n') {
 				continue;
 			}
-			// String literal is all ASCII whitespace characters
 			char *current_word = strtok(line_buf, " \t\n\v\f\r");
-			// String length + '\0'
-			char *current_word_stored =
-			    malloc((strlen(current_word) + 1) * sizeof(char));
+			char *current_word_stored;
+			if (current_word) {
+				current_word_stored =
+				    malloc((strlen(current_word) +
+					    1) * sizeof(char));
+			}
+
 			if (words_len == current_max) {
 				char **tmp = realloc(words,
 						     (2 * current_max *
@@ -177,11 +179,10 @@ char **load_words(char **input_files, size_t count_files)
 				       2 * current_max * sizeof(*words));
 				words = tmp;
 			}
-			strcpy(current_word_stored, current_word);
-			words[words_len] = current_word_stored;
-			++words_len;
+
 			while ((current_word =
 				strtok(NULL, " \t\n\v\f\r")) != NULL) {
+				// Reallocate memory if needed
 				if (words_len == current_max) {
 					char **tmp = realloc(words,
 							     (2 * current_max *
@@ -190,6 +191,7 @@ char **load_words(char **input_files, size_t count_files)
 						puts("Fatal allocation error");
 						exit(MEMORY_ERROR);
 					}
+
 					current_max *= 2;
 					printf("\nRealloc'd %zu\n",
 					       2 * current_max *
@@ -198,19 +200,20 @@ char **load_words(char **input_files, size_t count_files)
 
 				}
 				current_word_stored = NULL;
-				current_word_stored =
-				    calloc(strlen(current_word) + 1,
-					   sizeof(char));
+				if (current_word) {
+					current_word_stored =
+					    calloc(strlen(current_word) + 1,
+						   sizeof(char));
+				}
+
 				strcpy(current_word_stored, current_word);
 				words[words_len] = current_word_stored;
 				++words_len;
-
 			}
 		}
 		if (line_buf) {
 			free(line_buf);
 		}
-
 	}
 	for (size_t i = 0; i < words_len; ++i) {
 		printf("%s\n", words[i]);
