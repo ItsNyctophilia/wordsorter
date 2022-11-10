@@ -13,7 +13,7 @@ static struct {
 	int bottom_count;
 	bool top_to_bottom;	// Applicable only if both -c 
 	// and -C are passed indicates the order is to prune 
-	//from the top first, then from the bottom if true, 
+	// from the top first, then from the bottom if true, 
 	// else reversed        
 	bool ascii_sort;	// Default sorting algorithm
 	bool num_sort;
@@ -29,7 +29,10 @@ int main(int argc, char *argv[])
 	int opt;
 	char *err = '\0';
 
+	// Option-handling syntax borrowed from Liam Echlin in
+	// getopt-demo.c
 	while ((opt = getopt(argc, argv, "ac:C:hlnrs")) != -1) {
+
 		switch (opt) {
 			// a[scii sort]
 		case 'a':
@@ -92,5 +95,25 @@ int main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (argc > 0) {
+		bool close_flag = false;
+		for (int i = 0; i < argc; ++i) {
+			FILE *fo = fopen(argv[i], "r");
+			if (!fo) {
+				close_flag = true;	// Close after all files checked
+				fprintf(stderr, "%s could not be opened",
+					argv[i]);
+				perror(" \b");	// Backspace to format perror string
+			} else {
+				fclose(fo);
+				printf("Succesfully opened %s\n", argv[i]);
+			}
+		}
+		if (close_flag == true) {
+			exit(INVOCATION_ERROR);
+		}
+
+	}
 	return (SUCCESS);
 }
