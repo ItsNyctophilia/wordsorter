@@ -31,7 +31,12 @@ static struct {
 
 } options = { 0, 0, true, true, false, false, false, false, false };
 
-char **load_words(char **input_files, size_t count_files);
+struct words_array {
+	char **words;
+	size_t words_len;
+};
+
+struct words_array *load_words(char **input_files, size_t count_files);
 
 int main(int argc, char *argv[])
 {
@@ -116,7 +121,6 @@ int main(int argc, char *argv[])
 				perror(" \b");	// Backspace to format perror string
 			} else {
 				fclose(fo);
-				printf("Succesfully opened %s\n", argv[i]);
 			}
 		}
 		if (close_flag == true) {
@@ -129,34 +133,32 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < argc; ++i) {
 			args[i] = argv[i];
 		}
-		load_words(args, argc);
+		struct words_array *current_array = load_words(args, argc);
 		free(args);
 		// TODO: Create struct that holds words
 		// plus size of words[]
-		
-		//for (size_t i = 0; i < words_len; ++i) {
-		//	printf("%s\n", words[i]);
-		//}
-		//for (size_t i = 0; i < words_len; ++i) {
-		//	free(words[i]);
-		//}
 
+		for (size_t i = 0; i < current_array->words_len; ++i) {
+			printf("%s\n", current_array->words[i]);
+		}
+		for (size_t i = 0; i < current_array->words_len; ++i) {
+			free(current_array->words[i]);
+		}
+		free(current_array->words);
+		free(current_array);
 	}
 	return (SUCCESS);
 }
 
-char **load_words(char **input_files, size_t count_files)
+struct words_array *load_words(char **input_files, size_t count_files)
 {
 
-	// TODO: iterate through all files once basic
-	// functionality established for single file
-	char **words;
+	struct words_array *current_array = malloc(sizeof(*current_array));
+	char **words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
 	size_t words_len = 0;
 	size_t current_max = DEFAULT_WORD_COUNT;
-	words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
 	for (size_t i = 0; i < count_files; ++i) {
 		FILE *fo = fopen(input_files[i], "r");
-
 		if (!fo) {
 			fprintf(stderr, "%s could not be opened",
 				input_files[0]);
@@ -231,5 +233,7 @@ char **load_words(char **input_files, size_t count_files)
 		}
 		fclose(fo);
 	}
-	return(words);
+	current_array->words_len = words_len;
+	current_array->words = words;
+	return (current_array);
 }
