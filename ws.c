@@ -5,7 +5,8 @@
 
 enum return_codes {
 	SUCCESS = 0,
-	INVOCATION_ERROR = 1
+	INVOCATION_ERROR = 1,
+	FILE_ERROR = 2
 };
 
 static struct {
@@ -23,6 +24,8 @@ static struct {
 	bool unique;
 
 } options = { 0, 0, true, true, false, false, false, false, false };
+
+char **load_words(char **input_files, size_t count_files);
 
 int main(int argc, char *argv[])
 {
@@ -113,7 +116,37 @@ int main(int argc, char *argv[])
 		if (close_flag == true) {
 			exit(INVOCATION_ERROR);
 		}
+		char **args;
+		// TODO: Error-handle malloc call
+		args = malloc(argc * sizeof(*args));
+
+		for (int i = 0; i < argc; ++i) {
+			args[i] = argv[i];
+		}
+		load_words(args, argc);
+		free(args);
 
 	}
 	return (SUCCESS);
+}
+
+char **load_words(char **input_files, size_t count_files)
+{
+
+	// TODO: iterate through all files once basic
+	// functionality established for single file
+	FILE *fo = fopen(input_files[0], "r");
+	if (!fo) {
+		fprintf(stderr, "%s could not be opened", input_files[0]);
+		perror(" \b");
+		exit(FILE_ERROR);
+	} else {
+		char *line_buf = { '\0' };
+		size_t buf_size = 0;
+		getline(&line_buf, &buf_size, fo);
+		printf("%s", line_buf);
+		free(line_buf);
+	}
+	fclose(fo);
+	return;
 }
