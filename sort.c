@@ -7,6 +7,11 @@ int ascii_sort(const void *str_1, const void *str_2)
 	return (strcmp(*(char *const *)str_1, *(char *const *)str_2));
 }
 
+int insensitive_ascii_sort(const void *str_1, const void *str_2)
+{
+	return (strcasecmp(*(char *const *)str_1, *(char *const *)str_2));
+}
+
 int len_sort(const void *str_1, const void *str_2)
 // Sort two strings by length in ascending order.
 {

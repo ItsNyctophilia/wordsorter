@@ -143,7 +143,8 @@ int main(int argc, char *argv[])
 
 		if (current_array->words_len) {
 			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), num_sort);
+			      sizeof(*(current_array->words)),
+			      insensitive_ascii_sort);
 		}
 		putchar('\n');
 		for (size_t i = 0; i < current_array->words_len; ++i) {
