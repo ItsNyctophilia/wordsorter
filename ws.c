@@ -2,11 +2,16 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 enum return_codes {
 	SUCCESS = 0,
 	INVOCATION_ERROR = 1,
 	FILE_ERROR = 2
+};
+
+enum buffer_sizes {
+	DEFAULT_WORD_COUNT = 32
 };
 
 static struct {
@@ -136,17 +141,50 @@ char **load_words(char **input_files, size_t count_files)
 	// TODO: iterate through all files once basic
 	// functionality established for single file
 	FILE *fo = fopen(input_files[0], "r");
+	char **words;
+	int words_len = 0;
+	words = calloc(DEFAULT_WORD_COUNT, sizeof(*words));
 	if (!fo) {
 		fprintf(stderr, "%s could not be opened", input_files[0]);
 		perror(" \b");
 		exit(FILE_ERROR);
 	} else {
-		char *line_buf = { '\0' };
+		char *line_buf = NULL;
 		size_t buf_size = 0;
-		getline(&line_buf, &buf_size, fo);
-		printf("%s", line_buf);
-		free(line_buf);
+		while (getline(&line_buf, &buf_size, fo) != -1) {
+			printf("%s", line_buf);
+			// String literal is all ASCII whitespace characters
+			char *current_word = strtok(line_buf, " \t\n\v\f\r");
+
+			char *current_word_stored =
+			    calloc(strlen(current_word) + 1, sizeof(char));
+			strcpy(current_word_stored, current_word);
+			words[words_len] = current_word_stored;
+			++words_len;
+			while ((current_word =
+				strtok(NULL, " \t\n\v\f\r")) != NULL) {
+				current_word_stored = NULL;
+				current_word_stored =
+				    calloc(strlen(current_word) + 1,
+					   sizeof(char));
+				strcpy(current_word_stored, current_word);
+				words[words_len] = current_word_stored;
+				++words_len;
+
+			}
+		}
+		if (line_buf) {
+			free(line_buf);
+		}
+
 	}
+	for (int i = 0; i < words_len; ++i) {
+		printf("%s\nwords_len=%d\n", words[i], words_len);
+	}
+	for (int i = 0; i < words_len; ++i) {
+		free(words[i]);
+	}
+	free(words);
 	fclose(fo);
 	return;
 }
