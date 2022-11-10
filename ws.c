@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include "sort.h"
 
 enum return_codes {
 	SUCCESS = 0,
@@ -139,6 +140,16 @@ int main(int argc, char *argv[])
 			printf("%s\n", current_array->words[i]);
 		}		// DEVPRINT
 		printf("words_len: %zu\n", current_array->words_len);	// DEVPRINT
+
+		if (current_array->words_len) {
+			// ASCII SORT TEST
+			qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)), ascii_sort);
+		}
+		putchar('\n');
+		for (size_t i = 0; i < current_array->words_len; ++i) {
+			printf("%s\n", current_array->words[i]);
+		}
 
 		// Free all allocated memory to current_array
 		for (size_t i = 0; i < current_array->words_len; ++i) {
