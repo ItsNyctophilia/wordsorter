@@ -7,7 +7,8 @@
 enum return_codes {
 	SUCCESS = 0,
 	INVOCATION_ERROR = 1,
-	FILE_ERROR = 2
+	FILE_ERROR = 2,
+	MEMORY_ERROR = 3
 };
 
 enum buffer_sizes {
@@ -142,8 +143,11 @@ char **load_words(char **input_files, size_t count_files)
 	// functionality established for single file
 	FILE *fo = fopen(input_files[0], "r");
 	char **words;
-	int words_len = 0;
-	words = calloc(DEFAULT_WORD_COUNT, sizeof(*words));
+	size_t words_len = 0;
+	size_t current_max = DEFAULT_WORD_COUNT;
+
+	// TODO: Reallocate memory as needed when > DEFAULT_WC
+	words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
 	if (!fo) {
 		fprintf(stderr, "%s could not be opened", input_files[0]);
 		perror(" \b");
@@ -152,17 +156,47 @@ char **load_words(char **input_files, size_t count_files)
 		char *line_buf = NULL;
 		size_t buf_size = 0;
 		while (getline(&line_buf, &buf_size, fo) != -1) {
-			printf("%s", line_buf);
+			if (line_buf[0] == '\n') {
+				continue;
+			}
 			// String literal is all ASCII whitespace characters
 			char *current_word = strtok(line_buf, " \t\n\v\f\r");
-
+			// String length + '\0'
 			char *current_word_stored =
-			    calloc(strlen(current_word) + 1, sizeof(char));
+			    malloc((strlen(current_word) + 1) * sizeof(char));
+			if (words_len == current_max) {
+				char **tmp = realloc(words,
+						     (2 * current_max *
+						      sizeof(*words)));
+				if (!tmp) {
+					puts("Fatal allocation error");
+					exit(MEMORY_ERROR);
+				}
+				current_max *= 2;
+				printf("\nRealloc'd %zu\n",
+				       2 * current_max * sizeof(*words));
+				words = tmp;
+			}
 			strcpy(current_word_stored, current_word);
 			words[words_len] = current_word_stored;
 			++words_len;
 			while ((current_word =
 				strtok(NULL, " \t\n\v\f\r")) != NULL) {
+				if (words_len == current_max) {
+					char **tmp = realloc(words,
+							     (2 * current_max *
+							      sizeof(*words)));
+					if (!tmp) {
+						puts("Fatal allocation error");
+						exit(MEMORY_ERROR);
+					}
+					current_max *= 2;
+					printf("\nRealloc'd %zu\n",
+					       2 * current_max *
+					       sizeof(*words));
+					words = tmp;
+
+				}
 				current_word_stored = NULL;
 				current_word_stored =
 				    calloc(strlen(current_word) + 1,
@@ -178,10 +212,10 @@ char **load_words(char **input_files, size_t count_files)
 		}
 
 	}
-	for (int i = 0; i < words_len; ++i) {
-		printf("%s\nwords_len=%d\n", words[i], words_len);
+	for (size_t i = 0; i < words_len; ++i) {
+		printf("%s\n", words[i]);
 	}
-	for (int i = 0; i < words_len; ++i) {
+	for (size_t i = 0; i < words_len; ++i) {
 		free(words[i]);
 	}
 	free(words);
