@@ -135,12 +135,12 @@ int main(int argc, char *argv[])
 		}
 		struct words_array *current_array = load_words(args, argc);
 		free(args);
-		// TODO: Create struct that holds words
-		// plus size of words[]
-
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			printf("%s\n", current_array->words[i]);
-		}
+		}		// DEVPRINT
+		printf("words_len: %zu\n", current_array->words_len);	// DEVPRINT
+
+		// Free all allocated memory to current_array
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			free(current_array->words[i]);
 		}
@@ -151,9 +151,12 @@ int main(int argc, char *argv[])
 }
 
 struct words_array *load_words(char **input_files, size_t count_files)
+// Iterates through each file passed to it, tokenizing individual
+// words on any whitespace character and returning a pointer to a
+// struct words_array with pointers to strings and a count of 
+// total words populated.
 {
-
-	struct words_array *current_array = malloc(sizeof(*current_array));
+	// TODO: Error handle malloc call
 	char **words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
 	size_t words_len = 0;
 	size_t current_max = DEFAULT_WORD_COUNT;
@@ -179,7 +182,12 @@ struct words_array *load_words(char **input_files, size_t count_files)
 						     (2 * current_max *
 						      sizeof(*words)));
 				if (!tmp) {
-					puts("Fatal allocation error");
+					for (size_t i = 0; i < words_len; ++i) {
+						free(words[i]);
+					}
+					free(words);
+					fprintf(stderr,
+						"Memory allocation error.\n");
 					exit(MEMORY_ERROR);
 				}
 				current_max *= 2;
@@ -189,6 +197,7 @@ struct words_array *load_words(char **input_files, size_t count_files)
 			}
 			if (current_word) {
 				current_word_stored =
+				    // TODO: Error-handle malloc call
 				    malloc((strlen(current_word) +
 					    1) * sizeof(*current_word));
 				strcpy(current_word_stored, current_word);
@@ -206,7 +215,13 @@ struct words_array *load_words(char **input_files, size_t count_files)
 							      *
 							      sizeof(*words)));
 					if (!tmp) {
-						puts("Fatal allocation error");
+						for (size_t i = 0;
+						     i < words_len; ++i) {
+							free(words[i]);
+						}
+						free(words);
+						fprintf(stderr,
+							"Memory allocation error.\n");
 						exit(MEMORY_ERROR);
 					}
 					current_max *= 2;
@@ -217,6 +232,7 @@ struct words_array *load_words(char **input_files, size_t count_files)
 				}
 				current_word_stored = NULL;
 				if (current_word) {
+					// TODO: error-handle calloc call
 					current_word_stored =
 					    calloc(strlen(current_word)
 						   + 1, sizeof(char));
@@ -233,6 +249,8 @@ struct words_array *load_words(char **input_files, size_t count_files)
 		}
 		fclose(fo);
 	}
+	//TODO: Error handle malloc call
+	struct words_array *current_array = malloc(sizeof(*current_array));
 	current_array->words_len = words_len;
 	current_array->words = words;
 	return (current_array);
