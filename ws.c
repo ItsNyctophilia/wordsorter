@@ -24,13 +24,14 @@ static struct {
 	// from the top first, then from the bottom if true, 
 	// else reversed        
 	bool ascii_sort;	// Default sorting algorithm
+	bool ascii_insens_sort;
 	bool num_sort;
 	bool len_sort;
 	bool scrabble_sort;
 	bool reversed;
 	bool unique;
 
-} options = { 0, 0, true, true, false, false, false, false, false };
+} options = { 0, 0, true, true, false, false, false, false, false, false };
 
 struct words_array {
 	char **words;
@@ -47,12 +48,21 @@ int main(int argc, char *argv[])
 
 	// Option-handling syntax borrowed from Liam Echlin in
 	// getopt-demo.c
-	while ((opt = getopt(argc, argv, "ac:C:hlnrs")) != -1) {
+	while ((opt = getopt(argc, argv, "ac:C:hilnrs")) != -1) {
 
 		switch (opt) {
 			// a[scii sort]
 		case 'a':
 			options.ascii_sort = true;
+			options.ascii_insens_sort = false;
+			options.len_sort = false;
+			options.scrabble_sort = false;
+			options.num_sort = false;
+			break;
+			// i[nsensitive ascii sort]
+		case 'i':
+			options.ascii_sort = false;
+			options.ascii_insens_sort = true;
 			options.len_sort = false;
 			options.scrabble_sort = false;
 			options.num_sort = false;
@@ -60,6 +70,7 @@ int main(int argc, char *argv[])
 			// l[ength sort]
 		case 'l':
 			options.ascii_sort = false;
+			options.ascii_insens_sort = false;
 			options.len_sort = true;
 			options.scrabble_sort = false;
 			options.num_sort = false;
@@ -67,6 +78,7 @@ int main(int argc, char *argv[])
 			// s[crabble sort]
 		case 's':
 			options.ascii_sort = false;
+			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = true;
 			options.num_sort = false;
@@ -74,11 +86,15 @@ int main(int argc, char *argv[])
 			// n[umerical sort]
 		case 'n':
 			options.ascii_sort = false;
+			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = false;
 			options.num_sort = true;
 			break;
 			// c[ount from top]
+		case 'r':
+			options.reversed = !(options.reversed);
+			break;
 		case 'c':
 			// TODO: Validate count < len(words)
 			err = '\0';
@@ -137,27 +153,57 @@ int main(int argc, char *argv[])
 		}
 		struct words_array *current_array = load_words(args, argc);
 		free(args);
-		for (size_t i = 0; i < current_array->words_len; ++i) {
-			printf("%s\n", current_array->words[i]);
-		}		// DEVPRINT
 
 		if (current_array->words_len) {
+		}		// ALL encompassed v
+
+		if (options.ascii_insens_sort == true) {
+			qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)),
+			      insensitive_ascii_sort);
+		}
+
+		if (options.num_sort == true) {
+			qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)), len_sort);
+		}
+		if (options.len_sort == true) {
+			qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)), len_sort);
+		}
+
+		if (options.ascii_sort == true) {
+			qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)), ascii_sort);
+		}
+
+		if (options.scrabble_sort == true) {
 			qsort(current_array->words, current_array->words_len,
 			      sizeof(*(current_array->words)), scrabble_sort);
+			prune_scrabble_words(current_array);
 		}
-		putchar('\n');
-		prune_scrabble_words(current_array);
-		for (size_t i = 0; i < current_array->words_len; ++i) {
-			if (current_array->words[i]) {
-				printf("%s\n", current_array->words[i]);
+
+		if (!options.reversed) {
+			// Case: Normal print
+			for (size_t i = 0; i < current_array->words_len; ++i) {
+				if (current_array->words[i]) {
+					printf("%s\n", current_array->words[i]);
+				}
+			}
+		} else {
+			// Case: Reversed print
+			for (size_t i = current_array->words_len; i > 0; --i) {
+				if (current_array->words[i]) {
+					printf("%s\n", current_array->words[i]);
+				}
 			}
 		}
+
 		// TODO: Logical sorting based on options
 		// Free all allocated memory to current_array
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			free(current_array->words[i]);
 		}
-
 		free(current_array->words);
 		free(current_array);
 	}
@@ -171,23 +217,25 @@ void prune_scrabble_words(struct words_array *current_array)
 {
 	for (size_t word = 0; word < current_array->words_len; ++word) {
 		int num_tiles[26] = { 9, 2, 2, 4, 12, 2, 3, 2, 9, 1,
-		1, 4, 2, 6, 8, 2, 1, 6, 4, 6,
-		4, 2, 2, 1, 2, 1 };
+			1, 4, 2, 6, 8, 2, 1, 6, 4, 6,
+			4, 2, 2, 1, 2, 1
+		};
 		int blank_tiles = 2;
-		for (size_t chr = 0; chr < strlen(current_array->words[word]); ++chr) {
+		for (size_t chr = 0; chr < strlen(current_array->words[word]);
+		     ++chr) {
 			char tmp = tolower(current_array->words[word][chr]);
 			if (!isalpha(tmp)) {
-				free (current_array->words[word]);
+				free(current_array->words[word]);
 				current_array->words[word] = NULL;
 				break;
 			}
 			int alpha_index = tmp - 'a';
 			if (num_tiles[alpha_index] > 0) {
 				--num_tiles[alpha_index];
-			} else if (blank_tiles > 0){
+			} else if (blank_tiles > 0) {
 				--blank_tiles;
 			} else {
-				free (current_array->words[word]);
+				free(current_array->words[word]);
 				current_array->words[word] = NULL;
 				break;
 			}
