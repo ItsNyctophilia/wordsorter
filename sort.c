@@ -39,6 +39,8 @@ int num_sort(const void *str_1, const void *str_2)
 }
 
 int scrabble_sort(const void *str_1, const void *str_2)
+// Sort two strings by score in scrabble in ascending order.
+// Does no validation.
 {
 	int num_1 = scrabble_sort_helper(str_1);
 	int num_2 = scrabble_sort_helper(str_2);
@@ -50,10 +52,11 @@ int scrabble_sort(const void *str_1, const void *str_2)
 
 int scrabble_sort_helper(const void *str)
 {
+	// Number of tiles in English Scrabble
+	//for each letter in the alphabet, in order
 	int num_tiles[26] = { 9, 2, 2, 4, 12, 2, 3, 2, 9, 1,
 		1, 4, 2, 6, 8, 2, 1, 6, 4, 6,
-		4, 2, 2, 1, 2, 1
-	};			// Number of tiles for each letter in the alphabet, in order
+		4, 2, 2, 1, 2, 1 };
 	int score = 0;
 	for (size_t i = 0; i < strlen(*(char *const *)str); ++i) {
 		char tmp = tolower(*(*(char *const *)str + i));
@@ -95,6 +98,5 @@ int scrabble_sort_helper(const void *str)
 			continue;
 		}
 	}
-	printf("%d<-- score word -->%s\n", score, *(char *const *)str);
 	return (score);
 }
