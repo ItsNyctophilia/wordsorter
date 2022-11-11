@@ -17,23 +17,18 @@ enum buffer_sizes {
 };
 
 static struct {
+	int (*algorithm)(const void *, const void *);
 	int top_count;
 	int bottom_count;
 	bool top_to_bottom;	// Applicable only if both -c 
 	// and -C are passed indicates the order is to prune 
 	// from the top first, then from the bottom if true, 
 	// else reversed        
-	bool ascii_sort;	// Default sorting algorithm
 	bool case_insens;
-	bool num_sort;
-	bool len_sort;
-	bool scrabble_sort;
 	bool scrabble_validation;
 	bool reversed;
 	bool unique;
-
-} options =
-    { 0, 0, true, true, false, false, false, false, false, false, false };
+} options = { ascii_sort, 0, 0, true, false, false, false, false };
 
 struct words_array {
 	char **words;
@@ -48,7 +43,6 @@ int main(int argc, char *argv[])
 {
 	int opt;
 	char *err = '\0';
-
 	// Option-handling syntax borrowed from Liam Echlin in
 	// getopt-demo.c
 	while ((opt = getopt(argc, argv, "ac:C:hilnrsSu")) != -1) {
@@ -56,43 +50,34 @@ int main(int argc, char *argv[])
 		switch (opt) {
 			// a[scii sort]
 		case 'a':
-			options.ascii_sort = true;
-			options.len_sort = false;
-			options.scrabble_sort = false;
-			options.num_sort = false;
+			options.algorithm = ascii_sort;
+			if (options.case_insens == true) {
+				options.algorithm = insensitive_ascii_sort;
+			}
 			break;
 			// i[nsensitive ascii sort]
 		case 'i':
 			options.case_insens = true;
+			if (options.algorithm == ascii_sort) {
+				options.algorithm = insensitive_ascii_sort;
+			}
 			break;
 			// l[ength sort]
 		case 'l':
-			options.ascii_sort = false;
-			options.len_sort = true;
-			options.scrabble_sort = false;
-			options.num_sort = false;
+			options.algorithm = len_sort;
 			break;
 			// s[crabble sort w/o validation]
 		case 's':
-			options.ascii_sort = false;
-			options.len_sort = false;
-			options.scrabble_sort = true;
-			options.num_sort = false;
+			options.algorithm = scrabble_sort;
 			break;
 			// S[crabble sort w/ validation]
 		case 'S':
-			options.ascii_sort = false;
-			options.len_sort = false;
-			options.scrabble_sort = true;
+			options.algorithm = scrabble_sort;
 			options.scrabble_validation = true;
-			options.num_sort = false;
 			break;
 			// n[umerical sort]
 		case 'n':
-			options.ascii_sort = false;
-			options.len_sort = false;
-			options.scrabble_sort = false;
-			options.num_sort = true;
+			options.algorithm = num_sort;
 			break;
 			// c[ount from top]
 		case 'u':
@@ -125,11 +110,31 @@ int main(int argc, char *argv[])
 			options.top_to_bottom = true;
 			break;
 		case 'h':
-			// TODO: create generic /? message
+			// h[elp message]
 			printf("Usage: %s [OPTION]... [FILE]...\n", argv[0]);
+			puts("Sort strings from FILE(s) and print to standard output."
+				 "\nWith no file, read standard input.\n\n"
+				 "Sorting algorithms:\n\n"
+			     "  -a,          ASCII codepoint sort\n" 
+				 "  -l,          Length-of-word sort\n" 
+			     "  -n,          Numerical sort\n" 
+			     "  -s,          Scrabble-score sort\n" 
+			     "  -S,          Scrabble-score sort, removing invalid words\n\n"
+				 "Other options:\n\n" 
+			     "  -u,          Display only unique words\n" 
+			     "  -i,          Case insensitive sort\n" 
+			     "  -c NUM,      Prints only first NUM lines from sorted output.\n" 
+			     "  -C NUM,      Prints only last NUM lines from sorted output.\n" 
+			     "               When -c and -C are combined, operations are applied\n" 
+			     "                 in order, for example, -c 20 -C 4 prints the last\n" 
+			     "                 4 of the first 20 sorted words.\n" 
+			     "  -h           Display this help message and exit.\n\n" 
+				 "Examples:\n" 
+				 "  ws -i -u [FILE]   Print contents of FILE, removing duplicate\n" 
+				 "                      words, case-insensitively.\n" 
+				 "  ws -l             Sorts from standard input by length.");
 			exit(SUCCESS);
 		}
-
 	}
 	argc -= optind;
 	argv += optind;
@@ -138,7 +143,7 @@ int main(int argc, char *argv[])
 		bool close_flag = false;
 		for (int i = 0; i < argc; ++i) {
 			FILE *fo = fopen(argv[i], "r");
-			if (!fo) {
+			if (!fo) {	// If file could not be opened for reading
 				close_flag = true;	// Close after all files checked
 				fprintf(stderr, "%s could not be opened",
 					argv[i]);
@@ -162,42 +167,18 @@ int main(int argc, char *argv[])
 
 		if (!current_array->words_len) {
 			// Case: No valid words in any files
-			exit(SUCCESS);
+			return (SUCCESS);
 		}
+		qsort(current_array->words, current_array->words_len,
+		      sizeof(*(current_array->words)), options.algorithm);
 
-		if (options.num_sort == true) {
-			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), num_sort);
-		}
-		if (options.len_sort == true) {
-			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), len_sort);
-		}
-
-		if (options.ascii_sort == true) {
-			if (options.case_insens) {
-				qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)),
-			      insensitive_ascii_sort);
-			} else {
-			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), ascii_sort);
-			}
-		}
-
-		if (options.scrabble_sort == true) {
-			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), scrabble_sort);
-			if (options.scrabble_validation == true) {
-				prune_scrabble_words(current_array);
-			}
+		if (options.scrabble_validation) {
+			prune_scrabble_words(current_array);
 		}
 
 		if (options.unique) {
-			prune_duplicates(current_array,
-					 options.case_insens);
+			prune_duplicates(current_array, options.case_insens);
 		}
-
 		// Print Block
 		if (!options.reversed) {
 			// Case: Normal print
@@ -208,19 +189,14 @@ int main(int argc, char *argv[])
 			}
 		} else {
 			// Case: Reversed print
-			for (size_t i = current_array->words_len; i > 0; --i) {
-				if (current_array->words[i]) {
-					printf("%s\n", current_array->words[i]);
+			for (size_t i = current_array->words_len + 1; i > 0;
+			     --i) {
+				if (current_array->words[i - 1]) {
+					printf("%s\n",
+					       current_array->words[i - 1]);
 				}
 			}
-			// Print last index
-			if (current_array->words[0]) {
-				printf("%s\n", current_array->words[0]);
-			}
 		}
-		
-
-		// TODO: Logical sorting based on options
 		// Free all allocated memory to current_array
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			free(current_array->words[i]);
@@ -228,6 +204,7 @@ int main(int argc, char *argv[])
 		free(current_array->words);
 		free(current_array);
 	}
+	// Case: Valid words sorted
 	return (SUCCESS);
 }
 
@@ -237,9 +214,8 @@ void prune_duplicates(struct words_array *current_array, bool case_insensitive)
 	     ++anchor_word) {
 		for (size_t word = (anchor_word + 1);
 		     word < current_array->words_len; ++word) {
-			if (!
-			    (current_array->words[word]
-			     && current_array->words[anchor_word])) {
+			if (!(current_array->words[word]
+			      && current_array->words[anchor_word])) {
 				continue;
 			}
 			if (!case_insensitive) {
@@ -247,8 +223,8 @@ void prune_duplicates(struct words_array *current_array, bool case_insensitive)
 				    (strncmp
 				     (current_array->words[anchor_word],
 				      current_array->words[word],
-				      strlen(current_array->
-					     words[anchor_word]) + 1))) {
+				      strlen(current_array->words[anchor_word])
+				      + 1))) {
 					free(current_array->words[word]);
 					current_array->words[word] = NULL;
 					continue;
@@ -258,8 +234,8 @@ void prune_duplicates(struct words_array *current_array, bool case_insensitive)
 				    (strncasecmp
 				     (current_array->words[anchor_word],
 				      current_array->words[word],
-				      strlen(current_array->
-					     words[anchor_word]) + 1))) {
+				      strlen(current_array->words[anchor_word])
+				      + 1))) {
 					free(current_array->words[word]);
 					current_array->words[word] = NULL;
 					continue;
@@ -278,22 +254,27 @@ void prune_scrabble_words(struct words_array *current_array)
 		int num_tiles[26] = { 9, 2, 2, 4, 12, 2, 3, 2, 9, 1,
 			1, 4, 2, 6, 8, 2, 1, 6, 4, 6,
 			4, 2, 2, 1, 2, 1
-		};
+		};		// Number of Scrabble tiles per letter in the alphabet
 		int blank_tiles = 2;
 		for (size_t chr = 0; chr < strlen(current_array->words[word]);
 		     ++chr) {
+			// tmp is the lowercase version of chr in word
 			char tmp = tolower(current_array->words[word][chr]);
 			if (!isalpha(tmp)) {
+				// Case: word contains invalid characters
 				free(current_array->words[word]);
 				current_array->words[word] = NULL;
 				break;
 			}
+			// alpha_index becomes the index from 0 - 25 in the
+			// alphabet for the purposes of indexing into num_tiles
 			int alpha_index = tmp - 'a';
 			if (num_tiles[alpha_index] > 0) {
 				--num_tiles[alpha_index];
 			} else if (blank_tiles > 0) {
 				--blank_tiles;
 			} else {
+				// Case: word exceeds valid tile allotment
 				free(current_array->words[word]);
 				current_array->words[word] = NULL;
 				break;
