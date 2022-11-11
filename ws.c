@@ -42,6 +42,7 @@ struct words_array {
 
 struct words_array *load_words(char **input_files, size_t count_files);
 void prune_scrabble_words(struct words_array *current_array);
+void prune_duplicates(struct words_array *current_array, bool case_sensitive);
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
 
 	// Option-handling syntax borrowed from Liam Echlin in
 	// getopt-demo.c
-	while ((opt = getopt(argc, argv, "ac:C:hilnrsS")) != -1) {
+	while ((opt = getopt(argc, argv, "ac:C:hilnrsSu")) != -1) {
 
 		switch (opt) {
 			// a[scii sort]
@@ -103,6 +104,9 @@ int main(int argc, char *argv[])
 			options.num_sort = true;
 			break;
 			// c[ount from top]
+		case 'u':
+			options.unique = true;
+			break;
 		case 'r':
 			options.reversed = !(options.reversed);
 			break;
@@ -195,6 +199,10 @@ int main(int argc, char *argv[])
 				prune_scrabble_words(current_array);
 			}
 		}
+		if (options.unique) {
+			prune_duplicates(current_array,
+					 options.ascii_insens_sort);
+		}
 
 		if (!options.reversed) {
 			// Case: Normal print
@@ -225,6 +233,44 @@ int main(int argc, char *argv[])
 		free(current_array);
 	}
 	return (SUCCESS);
+}
+
+void prune_duplicates(struct words_array *current_array, bool case_insensitive)
+{
+	for (size_t anchor_word = 0; anchor_word < current_array->words_len;
+	     ++anchor_word) {
+		for (size_t word = (anchor_word + 1);
+		     word < current_array->words_len; ++word) {
+			if (!
+			    (current_array->words[word]
+			     && current_array->words[anchor_word])) {
+				continue;
+			}
+			if (!case_insensitive) {
+				if (!
+				    (strncmp
+				     (current_array->words[anchor_word],
+				      current_array->words[word],
+				      strlen(current_array->
+					     words[anchor_word]) + 1))) {
+					free(current_array->words[word]);
+					current_array->words[word] = NULL;
+					continue;
+				}
+			} else {
+				if (!
+				    (strncasecmp
+				     (current_array->words[anchor_word],
+				      current_array->words[word],
+				      strlen(current_array->
+					     words[anchor_word]) + 1))) {
+					free(current_array->words[word]);
+					current_array->words[word] = NULL;
+					continue;
+				}
+			}
+		}
+	}
 }
 
 void prune_scrabble_words(struct words_array *current_array)
