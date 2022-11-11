@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include "sort.h"
 
 enum return_codes {
 	SUCCESS = 0,
@@ -37,6 +38,7 @@ struct words_array {
 };
 
 struct words_array *load_words(char **input_files, size_t count_files);
+void prune_scrabble_words(struct words_array *current_array);
 
 int main(int argc, char *argv[])
 {
@@ -138,16 +140,60 @@ int main(int argc, char *argv[])
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			printf("%s\n", current_array->words[i]);
 		}		// DEVPRINT
-		printf("words_len: %zu\n", current_array->words_len);	// DEVPRINT
 
+		if (current_array->words_len) {
+			qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)), scrabble_sort);
+		}
+		putchar('\n');
+		prune_scrabble_words(current_array);
+		for (size_t i = 0; i < current_array->words_len; ++i) {
+			if (current_array->words[i]) {
+				printf("%s\n", current_array->words[i]);
+			}
+		}
+		// TODO: Logical sorting based on options
 		// Free all allocated memory to current_array
 		for (size_t i = 0; i < current_array->words_len; ++i) {
 			free(current_array->words[i]);
 		}
+
 		free(current_array->words);
 		free(current_array);
 	}
 	return (SUCCESS);
+}
+
+void prune_scrabble_words(struct words_array *current_array)
+// Removes Scrabble-invalid words from the current_array argument
+// by freeing the allocated string and setting the pointer to NULL.
+// No return value, modifies the given struct words_array in-place.
+{
+	for (size_t word = 0; word < current_array->words_len; ++word) {
+		int num_tiles[26] = { 9, 2, 2, 4, 12, 2, 3, 2, 9, 1,
+		1, 4, 2, 6, 8, 2, 1, 6, 4, 6,
+		4, 2, 2, 1, 2, 1 };
+		int blank_tiles = 2;
+		for (size_t chr = 0; chr < strlen(current_array->words[word]); ++chr) {
+			char tmp = tolower(current_array->words[word][chr]);
+			if (!isalpha(tmp)) {
+				free (current_array->words[word]);
+				current_array->words[word] = NULL;
+				break;
+			}
+			int alpha_index = tmp - 'a';
+			if (num_tiles[alpha_index] > 0) {
+				--num_tiles[alpha_index];
+			} else if (blank_tiles > 0){
+				--blank_tiles;
+			} else {
+				free (current_array->words[word]);
+				current_array->words[word] = NULL;
+				break;
+			}
+		}
+	}
+	return;
 }
 
 struct words_array *load_words(char **input_files, size_t count_files)
