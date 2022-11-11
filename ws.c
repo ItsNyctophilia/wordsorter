@@ -24,7 +24,7 @@ static struct {
 	// from the top first, then from the bottom if true, 
 	// else reversed        
 	bool ascii_sort;	// Default sorting algorithm
-	bool ascii_insens_sort;
+	bool case_insens;
 	bool num_sort;
 	bool len_sort;
 	bool scrabble_sort;
@@ -57,23 +57,17 @@ int main(int argc, char *argv[])
 			// a[scii sort]
 		case 'a':
 			options.ascii_sort = true;
-			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = false;
 			options.num_sort = false;
 			break;
 			// i[nsensitive ascii sort]
 		case 'i':
-			options.ascii_sort = false;
-			options.ascii_insens_sort = true;
-			options.len_sort = false;
-			options.scrabble_sort = false;
-			options.num_sort = false;
+			options.case_insens = true;
 			break;
 			// l[ength sort]
 		case 'l':
 			options.ascii_sort = false;
-			options.ascii_insens_sort = false;
 			options.len_sort = true;
 			options.scrabble_sort = false;
 			options.num_sort = false;
@@ -81,7 +75,6 @@ int main(int argc, char *argv[])
 			// s[crabble sort w/o validation]
 		case 's':
 			options.ascii_sort = false;
-			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = true;
 			options.num_sort = false;
@@ -89,7 +82,6 @@ int main(int argc, char *argv[])
 			// S[crabble sort w/ validation]
 		case 'S':
 			options.ascii_sort = false;
-			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = true;
 			options.scrabble_validation = true;
@@ -98,7 +90,6 @@ int main(int argc, char *argv[])
 			// n[umerical sort]
 		case 'n':
 			options.ascii_sort = false;
-			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = false;
 			options.num_sort = true;
@@ -169,18 +160,14 @@ int main(int argc, char *argv[])
 		struct words_array *current_array = load_words(args, argc);
 		free(args);
 
-		if (current_array->words_len) {
-		}		// ALL encompassed v
-
-		if (options.ascii_insens_sort == true) {
-			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)),
-			      insensitive_ascii_sort);
+		if (!current_array->words_len) {
+			// Case: No valid words in any files
+			exit(SUCCESS);
 		}
 
 		if (options.num_sort == true) {
 			qsort(current_array->words, current_array->words_len,
-			      sizeof(*(current_array->words)), len_sort);
+			      sizeof(*(current_array->words)), num_sort);
 		}
 		if (options.len_sort == true) {
 			qsort(current_array->words, current_array->words_len,
@@ -188,8 +175,14 @@ int main(int argc, char *argv[])
 		}
 
 		if (options.ascii_sort == true) {
+			if (options.case_insens) {
+				qsort(current_array->words, current_array->words_len,
+			      sizeof(*(current_array->words)),
+			      insensitive_ascii_sort);
+			} else {
 			qsort(current_array->words, current_array->words_len,
 			      sizeof(*(current_array->words)), ascii_sort);
+			}
 		}
 
 		if (options.scrabble_sort == true) {
@@ -199,11 +192,13 @@ int main(int argc, char *argv[])
 				prune_scrabble_words(current_array);
 			}
 		}
+
 		if (options.unique) {
 			prune_duplicates(current_array,
-					 options.ascii_insens_sort);
+					 options.case_insens);
 		}
 
+		// Print Block
 		if (!options.reversed) {
 			// Case: Normal print
 			for (size_t i = 0; i < current_array->words_len; ++i) {
@@ -223,6 +218,7 @@ int main(int argc, char *argv[])
 				printf("%s\n", current_array->words[0]);
 			}
 		}
+		
 
 		// TODO: Logical sorting based on options
 		// Free all allocated memory to current_array
@@ -348,8 +344,6 @@ struct words_array *load_words(char **input_files, size_t count_files)
 					exit(MEMORY_ERROR);
 				}
 				current_max *= 2;
-				printf("\nRealloc'd %zu\n",
-				       2 * current_max * sizeof(*words));
 				words = tmp;
 			}
 			if (current_word) {
