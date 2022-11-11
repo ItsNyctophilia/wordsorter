@@ -28,10 +28,12 @@ static struct {
 	bool num_sort;
 	bool len_sort;
 	bool scrabble_sort;
+	bool scrabble_validation;
 	bool reversed;
 	bool unique;
 
-} options = { 0, 0, true, true, false, false, false, false, false, false };
+} options =
+    { 0, 0, true, true, false, false, false, false, false, false, false };
 
 struct words_array {
 	char **words;
@@ -48,7 +50,7 @@ int main(int argc, char *argv[])
 
 	// Option-handling syntax borrowed from Liam Echlin in
 	// getopt-demo.c
-	while ((opt = getopt(argc, argv, "ac:C:hilnrs")) != -1) {
+	while ((opt = getopt(argc, argv, "ac:C:hilnrsS")) != -1) {
 
 		switch (opt) {
 			// a[scii sort]
@@ -75,12 +77,21 @@ int main(int argc, char *argv[])
 			options.scrabble_sort = false;
 			options.num_sort = false;
 			break;
-			// s[crabble sort]
+			// s[crabble sort w/o validation]
 		case 's':
 			options.ascii_sort = false;
 			options.ascii_insens_sort = false;
 			options.len_sort = false;
 			options.scrabble_sort = true;
+			options.num_sort = false;
+			break;
+			// S[crabble sort w/ validation]
+		case 'S':
+			options.ascii_sort = false;
+			options.ascii_insens_sort = false;
+			options.len_sort = false;
+			options.scrabble_sort = true;
+			options.scrabble_validation = true;
 			options.num_sort = false;
 			break;
 			// n[umerical sort]
@@ -180,7 +191,9 @@ int main(int argc, char *argv[])
 		if (options.scrabble_sort == true) {
 			qsort(current_array->words, current_array->words_len,
 			      sizeof(*(current_array->words)), scrabble_sort);
-			prune_scrabble_words(current_array);
+			if (options.scrabble_validation == true) {
+				prune_scrabble_words(current_array);
+			}
 		}
 
 		if (!options.reversed) {
@@ -196,6 +209,10 @@ int main(int argc, char *argv[])
 				if (current_array->words[i]) {
 					printf("%s\n", current_array->words[i]);
 				}
+			}
+			// Print last index
+			if (current_array->words[0]) {
+				printf("%s\n", current_array->words[0]);
 			}
 		}
 
