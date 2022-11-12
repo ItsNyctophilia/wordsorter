@@ -45,6 +45,7 @@ void prune_num_words(struct words_array *current_array, size_t num_from_top,
 		     size_t num_from_bottom, bool top_to_bottom, bool top_flag,
 		     bool bottom_flag);
 void prune_duplicates(struct words_array *current_array, bool case_sensitive);
+void resize_array(struct words_array *current_array);
 
 int main(int argc, char *argv[])
 {
@@ -190,10 +191,7 @@ int main(int argc, char *argv[])
 
 		if (options.scrabble_validation) {
 			prune_scrabble_words(current_array);
-		}
-
-		if (options.unique) {
-			prune_duplicates(current_array, options.case_insens);
+			resize_array(current_array);
 		}
 
 		if (options.top_flag || options.bottom_flag) {
@@ -201,23 +199,24 @@ int main(int argc, char *argv[])
 					options.bottom_count,
 					options.top_to_bottom, options.top_flag,
 					options.bottom_flag);
+			resize_array(current_array);
 		}
+
+		if (options.unique) {
+			prune_duplicates(current_array, options.case_insens);
+			resize_array(current_array);
+		}
+
 		// Print block
 		if (!options.reversed) {
 			// Case: Normal print
 			for (size_t i = 0; i < current_array->words_len; ++i) {
-				if (current_array->words[i]) {
-					printf("%s\n", current_array->words[i]);
-				}
+				printf("%s\n", current_array->words[i]);
 			}
 		} else {
 			// Case: Reversed print
-			for (size_t i = current_array->words_len + 1; i > 0;
-					--i) {
-				if (current_array->words[i - 1]) {
-					printf("%s\n",
-							current_array->words[i - 1]);
-				}
+			for (size_t i = current_array->words_len + 1; i > 0; --i) {
+				printf("%s\n", current_array->words[i - 1]);
 			}
 		}
 	} else {
@@ -244,15 +243,18 @@ void prune_num_words(struct words_array *current_array, size_t num_from_top,
 // NULL.
 {
 	if (top_flag && bottom_flag) {
+		if(num_from_top > current_array->words_len) {
+			num_from_top = current_array->words_len;
+		}
+		if(num_from_bottom > current_array->words_len) {
+			num_from_bottom = current_array->words_len;
+		}
 		if (top_to_bottom) {
 			for (size_t i = num_from_top;
 			     i < current_array->words_len; ++i) {
 				// Set everything outside of first i elements to NULL
 				free(current_array->words[i]);
 				current_array->words[i] = NULL;
-			}
-			if (num_from_bottom > num_from_top) {
-				num_from_bottom = num_from_top;
 			}
 			for (size_t i = 0; i < num_from_top - num_from_bottom;
 			     ++i) {
@@ -262,6 +264,7 @@ void prune_num_words(struct words_array *current_array, size_t num_from_top,
 			}
 
 		} else {
+
 			for (size_t i = 0;
 			     i < current_array->words_len - num_from_bottom;
 			     ++i) {
@@ -279,6 +282,9 @@ void prune_num_words(struct words_array *current_array, size_t num_from_top,
 		}
 	}
 	if (top_flag && !bottom_flag) {
+		if(num_from_top > current_array->words_len) {
+			num_from_top = current_array->words_len;
+		}
 		for (size_t i = num_from_top; i < current_array->words_len; ++i) {
 			// Set everything outside of first i elements to NULL
 			free(current_array->words[i]);
@@ -296,6 +302,45 @@ void prune_num_words(struct words_array *current_array, size_t num_from_top,
 			current_array->words[i] = NULL;
 		}
 	}
+}
+
+void resize_array(struct words_array *current_array)
+// Allocates space for a new array of words, copies all
+// non-null words into it and then resizes it. Modifies
+// the passed argument in-place.
+{
+	char **tmp_words = calloc(current_array->words_len, sizeof(*current_array->words));
+	size_t new_size = 0;
+	for(size_t cur_word = 0 ; cur_word < current_array->words_len; ++cur_word) {
+		if (current_array->words[cur_word]) {
+			char *tmp_cur_word = calloc((strlen(current_array->words[cur_word]) + 1), sizeof(*current_array->words[cur_word]));
+			strncpy(tmp_cur_word, current_array->words[cur_word], strlen(current_array->words[cur_word]));
+			tmp_words[new_size] = tmp_cur_word;
+			++new_size;
+		} else {
+			free(current_array->words[cur_word]);
+		}
+	}
+	char **tmp = realloc(tmp_words, new_size * sizeof(*tmp_words));
+	if (!tmp) {
+		for (size_t i = 0; i < current_array->words_len; ++i) {
+			free(current_array->words[i]);
+		}
+		free(current_array->words);
+		free(tmp_words);
+		free(current_array);
+		fprintf(stderr, "Memory allocation error.\n");
+		exit(MEMORY_ERROR);
+	}
+
+	for (size_t i = 0; i < current_array->words_len; ++i) {
+		free(current_array->words[i]);
+	}
+	free(current_array->words);
+
+	current_array->words_len = new_size;
+	current_array->words = tmp;
+	return;
 }
 
 void prune_duplicates(struct words_array *current_array, bool case_insensitive)
@@ -461,8 +506,8 @@ struct words_array *load_words(char **input_files, size_t count_files)
 					    calloc(strlen(current_word)
 						   + 1, sizeof(char));
 
-					strcpy(current_word_stored,
-					       current_word);
+					strncpy(current_word_stored,
+					       current_word, strlen(current_word_stored) + 1);
 					words[words_len] = current_word_stored;
 					++words_len;
 				}
