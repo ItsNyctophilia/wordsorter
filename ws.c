@@ -292,7 +292,7 @@ struct words_array *load_words(char **input_files, size_t count_files)
 						"Memory allocation error.\n");
 					exit(MEMORY_ERROR);
 				}
-				strcpy(current_word_stored, current_word);
+				strncpy(current_word_stored, current_word, strlen(current_word));
 				words[words_len] = current_word_stored;
 				++words_len;
 			}
@@ -341,7 +341,7 @@ struct words_array *load_words(char **input_files, size_t count_files)
 
 					strncpy(current_word_stored,
 						current_word,
-						strlen(current_word_stored) +
+						strlen(current_word) +
 						1);
 					words[words_len] = current_word_stored;
 					++words_len;
@@ -418,7 +418,7 @@ struct words_array *load_words_interactively(void)
 				fprintf(stderr, "Memory allocation error.\n");
 				exit(MEMORY_ERROR);
 			}
-			strcpy(current_word_stored, current_word);
+			strncpy(current_word_stored, current_word, strlen(current_word));
 			words[words_len] = current_word_stored;
 			++words_len;
 		}
@@ -460,7 +460,7 @@ struct words_array *load_words_interactively(void)
 					exit(MEMORY_ERROR);
 				}
 
-				strcpy(current_word_stored, current_word);
+				strncpy(current_word_stored, current_word, strlen(current_word));
 				words[words_len] = current_word_stored;
 				++words_len;
 			}
