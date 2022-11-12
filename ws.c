@@ -39,6 +39,7 @@ struct words_array {
 };
 
 struct words_array *load_words(char **input_files, size_t count_files);
+struct words_array *load_words_interactively(void);
 void prune_scrabble_words(struct words_array *current_array);
 void prune_num_words(struct words_array *current_array, size_t num_from_top,
 		     size_t num_from_bottom, bool top_to_bottom, bool top_flag,
@@ -142,6 +143,8 @@ int main(int argc, char *argv[])
 				 "                      words, case-insensitively.\n" 
 				 "  ws -l             Sorts from standard input by length.");
 			exit(SUCCESS);
+		case '?':
+			exit(INVOCATION_ERROR);
 		}
 	}
 	argc -= optind;
@@ -163,23 +166,27 @@ int main(int argc, char *argv[])
 		if (close_flag == true) {
 			exit(INVOCATION_ERROR);
 		}
-		char **args;
-		// TODO: Error-handle malloc call
-		args = malloc(argc * sizeof(*args));
+	}
+	
+	char **args;
+	// TODO: Error-handle malloc call
+	args = malloc(argc * sizeof(*args));
 
-		for (int i = 0; i < argc; ++i) {
-			args[i] = argv[i];
-		}
-		struct words_array *current_array = load_words(args, argc);
-		free(args);
+	for (int i = 0; i < argc; ++i) {
+		args[i] = argv[i];
+	}
+	struct words_array *current_array;
+	if (argc > 0 ) {
+		current_array = load_words(args, argc);
+	} else {
+		current_array = load_words_interactively();
+	}
+	free(args);
 
-		if (!current_array->words_len) {
-			// Case: No valid words in any files
-			return (SUCCESS);
-		}
-
+	if (current_array->words_len) {
+	
 		qsort(current_array->words, current_array->words_len,
-		      sizeof(*(current_array->words)), options.algorithm);
+				sizeof(*(current_array->words)), options.algorithm);
 
 		if (options.scrabble_validation) {
 			prune_scrabble_words(current_array);
@@ -206,20 +213,25 @@ int main(int argc, char *argv[])
 		} else {
 			// Case: Reversed print
 			for (size_t i = current_array->words_len + 1; i > 0;
-			     --i) {
+					--i) {
 				if (current_array->words[i - 1]) {
 					printf("%s\n",
-					       current_array->words[i - 1]);
+							current_array->words[i - 1]);
 				}
 			}
 		}
-		// Free all allocated memory to current_array
-		for (size_t i = 0; i < current_array->words_len; ++i) {
-			free(current_array->words[i]);
-		}
+	} else {
 		free(current_array->words);
 		free(current_array);
+		return(SUCCESS);
 	}
+	// Free all allocated memory to current_array
+	for (size_t i = 0; i < current_array->words_len; ++i) {
+		free(current_array->words[i]);
+	}
+	free(current_array->words);
+	free(current_array);
+	
 	// Case: Valid words sorted
 	return (SUCCESS);
 }
@@ -371,7 +383,7 @@ struct words_array *load_words(char **input_files, size_t count_files)
 // total words populated.
 {
 	// TODO: Error handle malloc call
-	char **words = malloc(DEFAULT_WORD_COUNT * sizeof(*words));
+	char **words = calloc(DEFAULT_WORD_COUNT, sizeof(*words));
 	size_t words_len = 0;
 	size_t current_max = DEFAULT_WORD_COUNT;
 	for (size_t i = 0; i < count_files; ++i) {
@@ -461,6 +473,100 @@ struct words_array *load_words(char **input_files, size_t count_files)
 		}
 		fclose(fo);
 	}
+	//TODO: Error handle malloc call
+	struct words_array *current_array = malloc(sizeof(*current_array));
+	current_array->words_len = words_len;
+	current_array->words = words;
+	return (current_array);
+}
+
+struct words_array *load_words_interactively(void)
+// This is functionally the same as load words, but accepting from
+// stdin instead of from a file.
+{
+	// TODO: Error handle malloc call
+	char **words = calloc(DEFAULT_WORD_COUNT, sizeof(*words));
+	size_t words_len = 0;
+	size_t current_max = DEFAULT_WORD_COUNT;
+
+	char *line_buf = NULL;
+	size_t buf_size = 0;
+	while (getline(&line_buf, &buf_size, stdin) != -1) {
+		if (line_buf[0] == '\n') {
+			continue;
+		}
+		char *current_word = strtok(line_buf, " \t\n\v\f\r");
+		char *current_word_stored;
+		if (words_len == current_max) {
+			// Realloc syntax from Liam Echlin
+			char **tmp = realloc(words,
+							(2 * current_max *
+							sizeof(*words)));
+			if (!tmp) {
+				for (size_t i = 0; i < words_len; ++i) {
+					free(words[i]);
+				}
+				free(words);
+				fprintf(stderr,
+					"Memory allocation error.\n");
+				exit(MEMORY_ERROR);
+			}
+			current_max *= 2;
+			words = tmp;
+		}
+		if (current_word) {
+			current_word_stored =
+				// TODO: Error-handle malloc call
+				malloc((strlen(current_word) +
+					1) * sizeof(*current_word));
+			strcpy(current_word_stored, current_word);
+			words[words_len] = current_word_stored;
+			++words_len;
+		}
+
+		while ((current_word =
+			strtok(NULL, " \t\n\v\f\r")) != NULL) {
+			// Reallocate memory if needed
+			if (words_len == current_max) {
+				char **tmp = realloc(words,
+								(2 *
+								current_max
+								*
+								sizeof(*words)));
+				if (!tmp) {
+					for (size_t i = 0;
+							i < words_len; ++i) {
+						free(words[i]);
+					}
+					free(words);
+					fprintf(stderr,
+						"Memory allocation error.\n");
+					exit(MEMORY_ERROR);
+				}
+				current_max *= 2;
+				printf("\nRealloc'd %zu\n",
+						2 * current_max *
+						sizeof(*words));
+				words = tmp;
+			}
+			current_word_stored = NULL;
+			if (current_word) {
+				// TODO: error-handle calloc call
+				current_word_stored =
+					calloc(strlen(current_word)
+						+ 1, sizeof(char));
+
+				strcpy(current_word_stored,
+						current_word);
+				words[words_len] = current_word_stored;
+				++words_len;
+			}
+		}
+	}
+	if (line_buf) {
+		free(line_buf);
+	}
+
 	//TODO: Error handle malloc call
 	struct words_array *current_array = malloc(sizeof(*current_array));
 	current_array->words_len = words_len;
