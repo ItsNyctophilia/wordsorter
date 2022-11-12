@@ -23,12 +23,15 @@ static struct {
 	bool top_to_bottom;	// Applicable only if both -c 
 	// and -C are passed indicates the order is to prune 
 	// from the top first, then from the bottom if true, 
-	// else reversed        
+	// else reversed
+	bool top_flag;
+	bool bottom_flag;
 	bool case_insens;
 	bool scrabble_validation;
 	bool reversed;
 	bool unique;
-} options = { ascii_sort, 0, 0, true, false, false, false, false };
+} options =
+    { ascii_sort, 0, 0, true, false, false, false, false, false, false };
 
 struct words_array {
 	char **words;
@@ -38,7 +41,8 @@ struct words_array {
 struct words_array *load_words(char **input_files, size_t count_files);
 void prune_scrabble_words(struct words_array *current_array);
 void prune_num_words(struct words_array *current_array, size_t num_from_top,
-		     size_t num_from_bottom, bool top_to_bottom);
+		     size_t num_from_bottom, bool top_to_bottom, bool top_flag,
+		     bool bottom_flag);
 void prune_duplicates(struct words_array *current_array, bool case_sensitive);
 
 int main(int argc, char *argv[])
@@ -98,6 +102,7 @@ int main(int argc, char *argv[])
 				exit(INVOCATION_ERROR);
 			}
 			options.top_to_bottom = false;
+			options.top_flag = true;
 			break;
 			// C[ount from bottom]
 		case 'C':
@@ -110,6 +115,7 @@ int main(int argc, char *argv[])
 				exit(INVOCATION_ERROR);
 			}
 			options.top_to_bottom = true;
+			options.bottom_flag = true;
 			break;
 		case 'h':
 			// h[elp message]
@@ -171,6 +177,7 @@ int main(int argc, char *argv[])
 			// Case: No valid words in any files
 			return (SUCCESS);
 		}
+
 		qsort(current_array->words, current_array->words_len,
 		      sizeof(*(current_array->words)), options.algorithm);
 
@@ -181,20 +188,14 @@ int main(int argc, char *argv[])
 		if (options.unique) {
 			prune_duplicates(current_array, options.case_insens);
 		}
-		// Print Block
-		if (options.top_count > current_array->words_len) {
-			options.top_count = current_array->words_len;
-		}
-		if (options.bottom_count > current_array->words_len) {
-			options.bottom_count = current_array->words_len;
-		}
 
-		if (options.top_count && options.bottom_count) {
+		if (options.top_flag || options.bottom_flag) {
 			prune_num_words(current_array, options.top_count,
 					options.bottom_count,
-					options.top_to_bottom);
+					options.top_to_bottom, options.top_flag,
+					options.bottom_flag);
 		}
-
+		// Print block
 		if (!options.reversed) {
 			// Case: Normal print
 			for (size_t i = 0; i < current_array->words_len; ++i) {
@@ -224,34 +225,61 @@ int main(int argc, char *argv[])
 }
 
 void prune_num_words(struct words_array *current_array, size_t num_from_top,
-		     size_t num_from_bottom, bool top_to_bottom)
+		     size_t num_from_bottom, bool top_to_bottom, bool top_flag,
+		     bool bottom_flag)
+// Prunes the top or bottom n numbers from the file based on the given
+// -c and -C options by setting everything outside of those values to
+// NULL.
 {
-	if (top_to_bottom) {
+	if (top_flag && bottom_flag) {
+		if (top_to_bottom) {
+			for (size_t i = num_from_top;
+			     i < current_array->words_len; ++i) {
+				// Set everything outside of first i elements to NULL
+				free(current_array->words[i]);
+				current_array->words[i] = NULL;
+			}
+			if (num_from_bottom > num_from_top) {
+				num_from_bottom = num_from_top;
+			}
+			for (size_t i = 0; i < num_from_top - num_from_bottom;
+			     ++i) {
+				// Then set everything outside of last i elements to NULL
+				free(current_array->words[i]);
+				current_array->words[i] = NULL;
+			}
+
+		} else {
+			for (size_t i = 0;
+			     i < current_array->words_len - num_from_bottom;
+			     ++i) {
+				// Set everything outside of last i elements to NULL
+				free(current_array->words[i]);
+				current_array->words[i] = NULL;
+			}
+			for (size_t i =
+			     current_array->words_len - num_from_bottom +
+			     num_from_top; i < current_array->words_len; ++i) {
+				// Then set everything outside of first i elements to NULL
+				free(current_array->words[i]);
+				current_array->words[i] = NULL;
+			}
+		}
+	}
+	if (top_flag && !bottom_flag) {
 		for (size_t i = num_from_top; i < current_array->words_len; ++i) {
 			// Set everything outside of first i elements to NULL
 			free(current_array->words[i]);
 			current_array->words[i] = NULL;
 		}
-		if (num_from_bottom > num_from_top) {
-			num_from_bottom = num_from_top;
+	}
+	if (bottom_flag && !top_flag) {
+		if (num_from_bottom > current_array->words_len) {
+			num_from_bottom = current_array->words_len;
 		}
-		for (size_t i = 0; i < num_from_top - num_from_bottom; ++i) {
-			// Then set everything outside of last i elements to NULL
-			free(current_array->words[i]);
-			current_array->words[i] = NULL;
-		}
-
-	} else {
 		for (size_t i = 0;
 		     i < current_array->words_len - num_from_bottom; ++i) {
 			// Set everything outside of last i elements to NULL
-			free(current_array->words[i]);
-			current_array->words[i] = NULL;
-		}
-		for (size_t i =
-		     current_array->words_len - num_from_bottom + num_from_top;
-		     i < current_array->words_len; ++i) {
-			// Then set everything outside of first i elements to NULL
 			free(current_array->words[i]);
 			current_array->words[i] = NULL;
 		}
@@ -259,6 +287,8 @@ void prune_num_words(struct words_array *current_array, size_t num_from_top,
 }
 
 void prune_duplicates(struct words_array *current_array, bool case_insensitive)
+// Prunes the duplicate words from the array for the purposes of the -u
+// option.
 {
 	for (size_t anchor_word = 0; anchor_word < current_array->words_len;
 	     ++anchor_word) {
