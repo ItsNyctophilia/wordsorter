@@ -78,6 +78,7 @@ int main(int argc, char *argv[])
 			// s[crabble sort w/o validation]
 		case 's':
 			options.algorithm = scrabble_sort;
+			options.scrabble_validation = false;
 			break;
 			// S[crabble sort w/ validation]
 		case 'S':
@@ -103,7 +104,7 @@ int main(int argc, char *argv[])
 			if (*err) {
 				fprintf(stderr, "%s is not a number.\n",
 					optarg);
-				exit(INVOCATION_ERROR);
+				return (INVOCATION_ERROR);
 			}
 			options.top_to_bottom = false;
 			options.top_flag = true;
@@ -115,7 +116,7 @@ int main(int argc, char *argv[])
 			if (*err) {
 				fprintf(stderr, "%s is not a number.\n",
 					optarg);
-				exit(INVOCATION_ERROR);
+				return (INVOCATION_ERROR);
 			}
 			options.top_to_bottom = true;
 			options.bottom_flag = true;
@@ -151,7 +152,6 @@ int main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
-
 	if (argc > 0) {
 		// Validates that given files are able to be opened
 		bool close_flag = false;
@@ -294,7 +294,8 @@ struct words_array *load_words(char **input_files, size_t count_files)
 						"Memory allocation error.\n");
 					exit(MEMORY_ERROR);
 				}
-				strncpy(current_word_stored, current_word, strlen(current_word));
+				strncpy(current_word_stored, current_word, 
+					    strlen(current_word));
 				words[words_len] = current_word_stored;
 				++words_len;
 			}
@@ -319,9 +320,6 @@ struct words_array *load_words(char **input_files, size_t count_files)
 						exit(MEMORY_ERROR);
 					}
 					current_max *= 2;
-					printf("\nRealloc'd %zu\n",
-					       2 * current_max *
-					       sizeof(*words));
 					words = tmp;
 				}
 				current_word_stored = NULL;
@@ -408,7 +406,8 @@ struct words_array *load_words_interactively(void)
 			words = tmp;
 		}
 		if (current_word) {
-			current_word_stored = calloc((strlen(current_word) + 1), sizeof(*current_word));
+			current_word_stored = calloc((strlen(current_word) + 1), 
+										 sizeof(*current_word));
 			if (!current_word_stored) {
 				// Case: Out of memory
 				for (size_t i = 0; i < words_len; ++i) {
@@ -440,8 +439,6 @@ struct words_array *load_words_interactively(void)
 					exit(MEMORY_ERROR);
 				}
 				current_max *= 2;
-				printf("\nRealloc'd %zu\n",
-				       2 * current_max * sizeof(*words));
 				words = tmp;
 			}
 			current_word_stored = NULL;
@@ -460,7 +457,8 @@ struct words_array *load_words_interactively(void)
 					exit(MEMORY_ERROR);
 				}
 
-				strncpy(current_word_stored, current_word, strlen(current_word));
+				strncpy(current_word_stored, current_word, 
+					    strlen(current_word));
 				words[words_len] = current_word_stored;
 				++words_len;
 			}
@@ -627,8 +625,8 @@ void resize_array(struct words_array *current_array)
 }
 
 void prune_duplicates(struct words_array *current_array, bool case_insensitive)
-// Prunes the duplicate words from the array for the purposes of the -u
-// option.
+// Prunes the duplicate words from the given array for the purposes of the -u
+// option. 
 {
 	for (size_t anchor_word = 0; anchor_word < current_array->words_len;
 	     ++anchor_word) {
