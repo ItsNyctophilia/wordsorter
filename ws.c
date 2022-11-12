@@ -210,10 +210,12 @@ int main(int argc, char *argv[])
 			}
 		} else {
 			// Case: Reversed print
-			for (size_t i = current_array->words_len + 1; i > 0;
-			     --i) {
-				printf("%s\n", current_array->words[i - 1]);
+			for (size_t i = current_array->words_len; i > 0; --i) {
+				if (current_array->words[i]) {
+				printf("%s\n", current_array->words[i]);
+				}
 			}
+			printf("%s\n", current_array->words[0]);
 		}
 	} else {
 		free(current_array->words);
@@ -280,8 +282,8 @@ struct words_array *load_words(char **input_files, size_t count_files)
 			}
 			if (current_word) {
 				current_word_stored =
-				    malloc((strlen(current_word) +
-					    1) * sizeof(*current_word));
+				    calloc((strlen(current_word) +
+					    1), sizeof(*current_word));
 				if (!current_word_stored) {
 					// Case: Out of memory
 					for (size_t i = 0; i < words_len; ++i) {
@@ -406,9 +408,7 @@ struct words_array *load_words_interactively(void)
 			words = tmp;
 		}
 		if (current_word) {
-			current_word_stored = malloc((strlen(current_word) +
-						      1) *
-						     sizeof(*current_word));
+			current_word_stored = calloc((strlen(current_word) + 1), sizeof(*current_word));
 			if (!current_word_stored) {
 				// Case: Out of memory
 				for (size_t i = 0; i < words_len; ++i) {
