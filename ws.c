@@ -18,8 +18,8 @@ enum buffer_sizes {
 
 static struct {
 	int (*algorithm)(const void *, const void *);
-	int top_count;
-	int bottom_count;
+	size_t top_count;
+	size_t bottom_count;
 	bool top_to_bottom;	// Applicable only if both -c 
 	// and -C are passed indicates the order is to prune 
 	// from the top first, then from the bottom if true, 
@@ -37,6 +37,8 @@ struct words_array {
 
 struct words_array *load_words(char **input_files, size_t count_files);
 void prune_scrabble_words(struct words_array *current_array);
+void prune_num_words(struct words_array *current_array, size_t num_from_top,
+		     size_t num_from_bottom, bool top_to_bottom);
 void prune_duplicates(struct words_array *current_array, bool case_sensitive);
 
 int main(int argc, char *argv[])
@@ -115,20 +117,20 @@ int main(int argc, char *argv[])
 			puts("Sort strings from FILE(s) and print to standard output."
 				 "\nWith no file, read standard input.\n\n"
 				 "Sorting algorithms:\n\n"
-			     "  -a,          ASCII codepoint sort\n" 
+				 "  -a,          ASCII codepoint sort\n" 
 				 "  -l,          Length-of-word sort\n" 
-			     "  -n,          Numerical sort\n" 
-			     "  -s,          Scrabble-score sort\n" 
-			     "  -S,          Scrabble-score sort, removing invalid words\n\n"
+				 "  -n,          Numerical sort\n" 
+				 "  -s,          Scrabble-score sort\n" 
+				 "  -S,          Scrabble-score sort, removing invalid words\n\n"
 				 "Other options:\n\n" 
-			     "  -u,          Display only unique words\n" 
-			     "  -i,          Case insensitive sort\n" 
-			     "  -c NUM,      Prints only first NUM lines from sorted output.\n" 
-			     "  -C NUM,      Prints only last NUM lines from sorted output.\n" 
-			     "               When -c and -C are combined, operations are applied\n" 
-			     "                 in order, for example, -c 20 -C 4 prints the last\n" 
-			     "                 4 of the first 20 sorted words.\n" 
-			     "  -h           Display this help message and exit.\n\n" 
+				 "  -u,          Display only unique words\n" 
+				 "  -i,          Case insensitive sort\n" 
+				 "  -c NUM,      Prints only first NUM lines from sorted output.\n" 
+				 "  -C NUM,      Prints only last NUM lines from sorted output.\n" 
+				 "               When -c and -C are combined, operations are applied\n" 
+				 "                 in order, for example, -c 20 -C 4 prints the last\n" 
+				 "                 4 of the first 20 sorted words.\n" 
+				 "  -h           Display this help message and exit.\n\n" 
 				 "Examples:\n" 
 				 "  ws -i -u [FILE]   Print contents of FILE, removing duplicate\n" 
 				 "                      words, case-insensitively.\n" 
@@ -180,6 +182,19 @@ int main(int argc, char *argv[])
 			prune_duplicates(current_array, options.case_insens);
 		}
 		// Print Block
+		if (options.top_count > current_array->words_len) {
+			options.top_count = current_array->words_len;
+		}
+		if (options.bottom_count > current_array->words_len) {
+			options.bottom_count = current_array->words_len;
+		}
+
+		if (options.top_count && options.bottom_count) {
+			prune_num_words(current_array, options.top_count,
+					options.bottom_count,
+					options.top_to_bottom);
+		}
+
 		if (!options.reversed) {
 			// Case: Normal print
 			for (size_t i = 0; i < current_array->words_len; ++i) {
@@ -206,6 +221,41 @@ int main(int argc, char *argv[])
 	}
 	// Case: Valid words sorted
 	return (SUCCESS);
+}
+
+void prune_num_words(struct words_array *current_array, size_t num_from_top,
+		     size_t num_from_bottom, bool top_to_bottom)
+{
+	if (top_to_bottom) {
+		for (size_t i = num_from_top; i < current_array->words_len; ++i) {
+			// Set everything outside of first i elements to NULL
+			free(current_array->words[i]);
+			current_array->words[i] = NULL;
+		}
+		if (num_from_bottom > num_from_top) {
+			num_from_bottom = num_from_top;
+		}
+		for (size_t i = 0; i < num_from_top - num_from_bottom; ++i) {
+			// Then set everything outside of last i elements to NULL
+			free(current_array->words[i]);
+			current_array->words[i] = NULL;
+		}
+
+	} else {
+		for (size_t i = 0;
+		     i < current_array->words_len - num_from_bottom; ++i) {
+			// Set everything outside of last i elements to NULL
+			free(current_array->words[i]);
+			current_array->words[i] = NULL;
+		}
+		for (size_t i =
+		     current_array->words_len - num_from_bottom + num_from_top;
+		     i < current_array->words_len; ++i) {
+			// Then set everything outside of first i elements to NULL
+			free(current_array->words[i]);
+			current_array->words[i] = NULL;
+		}
+	}
 }
 
 void prune_duplicates(struct words_array *current_array, bool case_insensitive)
